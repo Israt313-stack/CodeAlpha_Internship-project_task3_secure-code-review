@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ScanForge // Secure Code Review</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a0e1a; --panel:#111827; --panel2:#0c1220; --line:#232e47;
+    --pink:#ff3fb0; --cyan:#3ff0ff; --red:#ff5c5c; --amber:#ffb32e; --green:#3dff8a;
+    --ink:#e8ecfb; --ink-dim:#7c88ab;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    font-family:'JetBrains Mono',monospace; color:var(--ink); min-height:100vh;
+    background: radial-gradient(900px 500px at 15% 0%, rgba(255,63,176,.08), transparent 60%),
+                radial-gradient(900px 500px at 85% 100%, rgba(63,240,255,.08), transparent 60%), var(--bg);
+  }
+  header{ padding:26px 6vw; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;}
+  .brand{ font-family:'Orbitron',sans-serif; font-weight:800; font-size:17px; letter-spacing:.05em; }
+  .brand span{ background:linear-gradient(90deg,var(--pink),var(--cyan)); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .tagline{ font-size:11px; color:var(--ink-dim); }
+
+  .wrap{ max-width:1020px; margin:0 auto; padding:26px 6vw 60px; }
+
+  .selector{ display:flex; gap:10px; flex-wrap:wrap; margin-bottom:20px; }
+  .sample-btn{
+    background:var(--panel); border:1px solid var(--line); color:var(--ink); padding:10px 16px; border-radius:8px;
+    font-family:'JetBrains Mono',monospace; font-weight:600; font-size:12px; cursor:pointer; transition:all .15s ease;
+  }
+  .sample-btn:hover{ border-color:var(--cyan); }
+  .sample-btn.active{ background:rgba(63,240,255,.12); border-color:var(--cyan); color:var(--cyan); }
+  .spacer{ flex:1; }
+  .scan-btn{
+    background:linear-gradient(135deg,var(--pink),var(--cyan)); color:#04101f; border:none; padding:11px 20px;
+    border-radius:8px; font-family:'JetBrains Mono',monospace; font-weight:700; font-size:12px; cursor:pointer;
+  }
+  .scan-btn:disabled{ opacity:.5; cursor:progress; }
+
+  .grid2{ display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px; }
+  @media(max-width:820px){ .grid2{ grid-template-columns:1fr; } }
+
+  .panel{ background:var(--panel); border:1px solid var(--line); border-radius:12px; overflow:hidden; }
+  .panel-head{ padding:12px 16px; border-bottom:1px solid var(--line); font-weight:700; font-size:12px; display:flex; justify-content:space-between; align-items:center; letter-spacing:.04em;}
+  .lang-pill{ font-size:10px; background:rgba(255,63,176,.14); color:var(--pink); padding:3px 10px; border-radius:999px; font-weight:700;}
+
+  pre{ margin:0; padding:16px; font-size:12px; line-height:1.7; overflow-x:auto; max-height:420px; overflow-y:auto; background:var(--panel2); color:#c7d0ee;}
+  code .hl{ background:rgba(255,92,92,.18); border-left:3px solid var(--red); display:inline-block; width:100%; padding-left:4px; }
+
+  .summary-row{ display:grid; grid-template-columns:repeat(2,1fr); gap:10px; padding:16px; }
+  .sum-card{ background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:14px; }
+  .sum-card .n{ font-size:22px; font-weight:800; font-family:'Orbitron',sans-serif; }
+  .sum-card .l{ font-size:10px; color:var(--ink-dim); font-weight:600; margin-top:4px; letter-spacing:.04em; text-transform:uppercase;}
+  .sum-card.crit .n{ color:var(--red); } .sum-card.high .n{ color:var(--amber); }
+  .sum-card.med .n{ color:var(--cyan); } .sum-card.score .n{ color:var(--green); }
+
+  .empty-state{ text-align:center; padding:60px 20px; color:var(--ink-dim); font-size:12px; }
+
+  .findings{ display:flex; flex-direction:column; gap:12px; }
+  .finding{ background:var(--panel); border:1px solid var(--line); border-left:3px solid var(--red); border-radius:10px; padding:16px; }
+  .finding.high{ border-left-color:var(--amber); }
+  .finding.medium{ border-left-color:var(--cyan); }
+  .f-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:8px;}
+  .f-title{ font-weight:700; font-size:13px; }
+  .sev-badge{ font-size:9px; font-weight:800; padding:3px 9px; border-radius:999px; text-transform:uppercase; letter-spacing:.04em; font-family:'Orbitron',sans-serif;}
+  .sev-badge.critical{ background:rgba(255,92,92,.14); color:var(--red); }
+  .sev-badge.high{ background:rgba(255,179,46,.14); color:var(--amber); }
+  .sev-badge.medium{ background:rgba(63,240,255,.14); color:var(--cyan); }
+  .f-line{ font-size:11px; color:var(--ink-dim); margin-bottom:8px;}
+  .f-desc{ font-size:12.5px; color:#b7c1e0; line-height:1.65; margin-bottom:10px; }
+  .f-fix{ background:var(--panel2); border-radius:8px; padding:12px 14px; font-size:12px; color:#c7d0ee; border:1px solid var(--line);}
+  .f-fix b{ color:var(--green); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">Scan<span>Forge</span></div>
+  <div class="tagline">// static analysis · vulnerability triage · remediation guidance</div>
+</header>
+
+<div class="wrap">
+  <div class="selector" id="selector"></div>
+
+  <div class="grid2">
+    <div class="panel">
+      <div class="panel-head"><span>SOURCE.CODE</span><span class="lang-pill" id="langPill">Python</span></div>
+      <pre><code id="codeView"></code></pre>
+    </div>
+    <div class="panel">
+      <div class="panel-head"><span>SCAN_SUMMARY</span></div>
+      <div id="summaryArea" class="empty-state">&gt; awaiting scan trigger...</div>
+    </div>
+  </div>
+
+  <div id="findingsArea"></div>
+</div>
+
+<script>
+const samples = {
+  login: {
+    lang:"Python",
+    code:
+`import sqlite3
+
+def login(username, password):
+    conn = sqlite3.connect("app.db")
+    cur = conn.cursor()
+    query = "SELECT * FROM users WHERE username = '" + username + "' AND password = '" + password + "'"
+    cur.execute(query)
+    user = cur.fetchone()
+    if user:
+        return True
+    return False
+
+def get_secret_key():
+    return "hardcoded-super-secret-key-123"
+
+@app.route("/reset-password")
+def reset_password():
+    email = request.args.get("email")
+    # sends reset link with no rate limiting or CAPTCHA
+    send_reset_email(email)
+    return "sent"`,
+    findings:[
+      {sev:"critical", title:"SQL Injection via string concatenation", line:"Line 6", desc:"User-supplied username/password are concatenated directly into the SQL query, allowing an attacker to inject arbitrary SQL to bypass authentication entirely.", fix:"Use parameterized queries — cur.execute(\"SELECT * FROM users WHERE username=? AND password=?\", (username, password)). Never build SQL via string concatenation."},
+      {sev:"critical", title:"Plaintext password comparison", line:"Line 6-9", desc:"Passwords appear to be stored and compared in plaintext rather than hashed — a database leak exposes every real password.", fix:"Store only salted hashes (bcrypt/argon2) and compare with a constant-time verification function."},
+      {sev:"high", title:"Hardcoded secret key", line:"Line 12-13", desc:"A secret key is hardcoded in source, which is often committed to version control and exposed to anyone with repo access.", fix:"Load secrets from environment variables or a secrets manager, and rotate any key already committed."},
+      {sev:"medium", title:"No rate limiting on password reset", line:"Line 16-20", desc:"The reset endpoint has no rate limiting or CAPTCHA, vulnerable to abuse for email enumeration or spam.", fix:"Add per-IP/account rate limiting plus a CAPTCHA challenge before sending reset emails."},
+    ]
+  },
+  upload: {
+    lang:"JavaScript / Node.js",
+    code:
+`const express = require('express');
+const app = express();
+
+app.post('/upload', (req, res) => {
+  const filename = req.body.filename;
+  const filepath = "./uploads/" + filename;
+  fs.writeFileSync(filepath, req.body.data);
+  res.send("uploaded");
+});
+
+app.get('/download', (req, res) => {
+  const file = req.query.file;
+  res.sendFile(__dirname + "/uploads/" + file);
+});
+
+app.get('/render', (req, res) => {
+  const name = req.query.name;
+  res.send("<h1>Welcome " + name + "</h1>");
+});`,
+    findings:[
+      {sev:"critical", title:"Path traversal in upload/download", line:"Line 6, 11", desc:"Filename comes directly from user input and is concatenated into a file path, allowing '../../' sequences to escape the uploads directory.", fix:"Sanitize with path.basename(), validate against an allowlist of characters, and confirm the resolved path stays inside uploads/."},
+      {sev:"high", title:"Reflected Cross-Site Scripting (XSS)", line:"Line 15-16", desc:"User input 'name' is inserted directly into the HTML response unescaped, letting an attacker inject executable script.", fix:"Escape all user input before rendering into HTML, or use an auto-escaping templating engine."},
+      {sev:"medium", title:"No file type/size validation", line:"Line 4-8", desc:"Any file type and size can be uploaded, risking malicious executables or oversized files on the server.", fix:"Validate MIME type/extension against an allowlist and enforce a max upload size."},
+    ]
+  }
+};
+
+let current = 'login';
+let scanned = false;
+
+function renderSelector(){
+  document.getElementById('selector').innerHTML = `
+    <button class="sample-btn ${current==='login'?'active':''}" data-k="login">login_system.py</button>
+    <button class="sample-btn ${current==='upload'?'active':''}" data-k="upload">upload_api.js</button>
+    <div class="spacer"></div>
+    <button class="scan-btn" id="scanBtn">▶ RUN_SCAN</button>`;
+  document.querySelectorAll('.sample-btn').forEach(b=>{
+    b.addEventListener('click', ()=>{ current = b.dataset.k; scanned=false; renderAll(); });
+  });
+  document.getElementById('scanBtn').addEventListener('click', runScan);
+}
+
+function renderCode(){
+  const s = samples[current];
+  document.getElementById('langPill').textContent = s.lang;
+  const lines = s.code.split('\n');
+  const flaggedLines = new Set(s.findings.map(f=> parseInt(f.line.match(/\d+/)[0]) ));
+  document.getElementById('codeView').innerHTML = lines.map((l,i)=>{
+    const n = i+1;
+    const flagged = scanned && flaggedLines.has(n);
+    return `<span class="${flagged?'hl':''}">${l.replace(/</g,'&lt;')}</span>\n`;
+  }).join('');
+}
+
+function runScan(){
+  const btn = document.getElementById('scanBtn');
+  btn.disabled = true;
+  btn.textContent = 'SCANNING...';
+  setTimeout(()=>{
+    scanned = true;
+    btn.disabled = false;
+    btn.textContent = '↺ RE-SCAN';
+    renderCode();
+    renderSummary();
+    renderFindings();
+  }, 700);
+}
+
+function renderSummary(){
+  const s = samples[current];
+  if(!scanned){
+    document.getElementById('summaryArea').innerHTML = `<div class="empty-state">&gt; awaiting scan trigger...</div>`;
+    return;
+  }
+  const crit = s.findings.filter(f=>f.sev==='critical').length;
+  const high = s.findings.filter(f=>f.sev==='high').length;
+  const med = s.findings.filter(f=>f.sev==='medium').length;
+  const score = Math.max(10, 100 - crit*25 - high*12 - med*6);
+  document.getElementById('summaryArea').innerHTML = `
+    <div class="summary-row">
+      <div class="sum-card crit"><div class="n">${crit}</div><div class="l">Critical</div></div>
+      <div class="sum-card high"><div class="n">${high}</div><div class="l">High</div></div>
+      <div class="sum-card med"><div class="n">${med}</div><div class="l">Medium</div></div>
+      <div class="sum-card score"><div class="n">${score}</div><div class="l">Score /100</div></div>
+    </div>`;
+}
+
+function renderFindings(){
+  const s = samples[current];
+  if(!scanned){ document.getElementById('findingsArea').innerHTML = ''; return; }
+  document.getElementById('findingsArea').innerHTML = `
+    <h2 style="font-family:'Orbitron',sans-serif; font-size:14px; margin:10px 0 14px; letter-spacing:.04em;">FINDINGS_&_REMEDIATION</h2>
+    <div class="findings">
+      ${s.findings.map(f=>`
+        <div class="finding ${f.sev}">
+          <div class="f-head">
+            <span class="f-title">${f.title}</span>
+            <span class="sev-badge ${f.sev}">${f.sev}</span>
+          </div>
+          <div class="f-line">${f.line} · ${s.lang}</div>
+          <div class="f-desc">${f.desc}</div>
+          <div class="f-fix"><b>&gt; fix:</b> ${f.fix}</div>
+        </div>`).join('')}
+    </div>`;
+}
+
+function renderAll(){
+  renderSelector();
+  renderCode();
+  renderSummary();
+  renderFindings();
+}
+renderAll();
+</script>
+</body>
+</html>
